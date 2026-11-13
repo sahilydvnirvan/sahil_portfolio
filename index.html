@@ -293,6 +293,7 @@
         .masonry > * { break-inside: avoid; margin-bottom: 1.5rem; }
 
         .group.tapped .portrait { filter: none; }
+        .modal-scroll { -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y pinch-zoom; }
         .modal-scroll::-webkit-scrollbar { width: 6px; }
         .modal-scroll::-webkit-scrollbar-thumb { background: rgb(var(--g-300)); border-radius: 10px; }
 
@@ -1059,7 +1060,7 @@
     <!-- Project detail dialog -->
     <div id="project-modal" class="fixed inset-0 z-[100] hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
         <div class="absolute inset-0 bg-ink/50 backdrop-blur-sm" data-close></div>
-        <div class="absolute inset-0 flex justify-center overflow-y-auto py-6 sm:p-10 pointer-events-none modal-scroll" style="padding-top: max(1.5rem, env(safe-area-inset-top)); padding-bottom: max(1.5rem, env(safe-area-inset-bottom));">
+        <div class="absolute inset-0 flex justify-center overflow-y-auto py-6 sm:p-10 modal-scroll" style="padding-top: max(1.5rem, env(safe-area-inset-top)); padding-bottom: max(1.5rem, env(safe-area-inset-bottom));">
             <div class="modal-card panel bg-white w-full max-w-6xl relative flex flex-col my-auto pointer-events-auto shadow-2xl mx-3 sm:mx-0">
                 <div class="sticky top-0 z-20 flex items-start justify-between p-4 sm:p-6 md:p-10 border-b border-gray-100 bg-white/90 backdrop-blur-xl rounded-t-[1.5rem]">
                     <div class="pr-4 sm:pr-6">
@@ -1656,23 +1657,35 @@
            4. DIALOGS (focus trap, Esc, focus return)
            ============================================================ */
         let activeDialog = null, lastTrigger = null;
+        let lockedY = 0;
+        function lockPage() {
+            const b = document.body;
+            lockedY = window.scrollY || document.documentElement.scrollTop || 0;
+            b.style.position = 'fixed'; b.style.top = '-' + lockedY + 'px'; b.style.left = '0'; b.style.right = '0'; b.style.width = '100%';
+        }
+        function unlockPage() {
+            const b = document.body, h = document.documentElement, prev = h.style.scrollBehavior;
+            b.style.position = ''; b.style.top = ''; b.style.left = ''; b.style.right = ''; b.style.width = '';
+            h.style.scrollBehavior = 'auto'; window.scrollTo(0, lockedY); h.style.scrollBehavior = prev;
+        }
         function openDialog(el, trigger, display) {
             activeDialog = el; lastTrigger = trigger || document.activeElement;
             el.classList.remove('hidden');
             if (display) el.classList.add(display);
-            document.body.style.overflow = 'hidden';
+            lockPage();
             requestAnimationFrame(() => el.querySelector('[data-close][aria-label]').focus());
         }
         function closeDialog() {
             if (!activeDialog) return;
             activeDialog.classList.add('hidden');
             activeDialog.classList.remove('flex');
-            document.body.style.overflow = '';
+            unlockPage();
             activeDialog = null;
             if (lastTrigger && lastTrigger.focus) lastTrigger.focus();
         }
         document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeDialog));
         $('#lightbox').addEventListener('click', e => { if (e.target.id === 'lightbox') closeDialog(); });
+        document.querySelectorAll('.modal-scroll').forEach(sc => sc.addEventListener('click', e => { if (e.target === sc) closeDialog(); }));
 
         document.addEventListener('keydown', e => {
             if (!activeDialog) return;
